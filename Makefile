@@ -68,12 +68,9 @@ create-example: clean-example
 	@rsync examples/example.go.txt ${TEST_GO_FILES_DIR}/example.go
 
 # Run example
-run-example: build create-example
+run-example: clean-example build create-example
 	@echo "Running example with specified orgs and current project..."
-	@echo "Before:"
-	@cat ${TEST_GO_FILES_DIR}/example.go
-	@echo "After:"
-	@$(BUILD_DIR)/$(BINARY_NAME) --orgs=github.com/myorg,github.com/acme-corp --current-project=github.com/username/go-imports-group ${TEST_GO_FILES_DIR}/example.go
+	@$(BUILD_DIR)/$(BINARY_NAME) --orgs=github.com/myorg,github.com/acme-corp --current-project=github.com/username/go-imports-group --in-place ${TEST_GO_FILES_DIR}/example.go
 	
 
 # Run example with in-place modification

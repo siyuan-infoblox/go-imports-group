@@ -327,9 +327,11 @@ func (g *formatter) formatFile(file *ast.File) ([]byte, error) {
 		}
 	}
 
-	// Temporarily remove imports from the file for formatting
 	file.Imports = nil
 	file.Decls = nonImportDecls
+	// Clear any comments that might be orphaned from import removal
+	originalComments := file.Comments
+	file.Comments = nil
 
 	// Format the file without imports
 	var buf strings.Builder
@@ -338,12 +340,14 @@ func (g *formatter) formatFile(file *ast.File) ([]byte, error) {
 		// Restore original state
 		file.Imports = originalImports
 		file.Decls = originalDecls
+		file.Comments = originalComments
 		return nil, err
 	}
 
 	// Restore original state
 	file.Imports = originalImports
 	file.Decls = originalDecls
+	file.Comments = originalComments
 
 	// Get the formatted content
 	lines := strings.Split(buf.String(), "\n")
@@ -377,7 +381,6 @@ func (g *formatter) formatFile(file *ast.File) ([]byte, error) {
 				}
 
 				result = append(result, ")")
-				result = append(result, "") // Add blank line after imports
 			}
 		}
 	}
@@ -448,62 +451,6 @@ func (g *formatter) shouldAddSpacingBetweenImports(specs []ast.Spec, currentInde
 	return false
 }
 
-// extractImportsOnly creates a minimal Go file containing only package declaration and imports
-func (g *formatter) extractImportsOnly(file *ast.File) ([]byte, error) {
-	// Create a new file with only package declaration and imports
-	newFile := &ast.File{
-		Name:    file.Name,
-		Imports: file.Imports,
-	}
-
-	// Find and copy only the import declarations
-	for _, decl := range file.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-			newFile.Decls = append(newFile.Decls, genDecl)
-		}
-	}
-
-	// Use the same custom formatting logic as formatFile but only for imports
-	return g.formatImportsOnly(newFile)
-}
-
-// formatImportsOnly formats only the package declaration and imports with proper spacing
-func (g *formatter) formatImportsOnly(file *ast.File) ([]byte, error) {
-	var result []string
-
-	// Add package declaration
-	result = append(result, fmt.Sprintf("package %s", file.Name.Name))
-	result = append(result, "") // Blank line after package
-
-	// Find import declaration
-	for _, decl := range file.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-			if len(genDecl.Specs) > 0 {
-				result = append(result, "import (")
-
-				// Format each import spec with proper spacing
-				for i, spec := range genDecl.Specs {
-					if importSpec, ok := spec.(*ast.ImportSpec); ok {
-						importLine := g.formatImportSpec(importSpec)
-
-						// Add spacing based on group changes
-						if i > 0 && g.shouldAddSpacingBetweenImports(genDecl.Specs, i) {
-							result = append(result, "")
-						}
-
-						result = append(result, "\t"+importLine)
-					}
-				}
-
-				result = append(result, ")")
-			}
-			break
-		}
-	}
-
-	return []byte(strings.Join(result, "\n") + "\n"), nil
-}
-
 // ProcessFileWithOutput processes a Go source file with optional output control
 func (g *formatter) ProcessFileWithOutput(verbose bool) error {
 	if verbose {
@@ -545,12 +492,8 @@ func (g *formatter) ProcessFileWithOutput(verbose bool) error {
 	}
 
 	if verbose {
-		// For stdout output, show only import declarations using AST
-		importsOnly, err := g.extractImportsOnly(newFile)
-		if err != nil {
-			return fmt.Errorf("%s: %w", errors.ErrMsgFailedToExtractImports, err)
-		}
-		fmt.Print(string(importsOnly))
+		// For stdout output, show the complete formatted file
+		fmt.Print(string(output))
 	}
 	return nil
 }
