@@ -95,7 +95,7 @@ run-example: clean-example build create-example
 # Run example with in-place modification
 run-example-inplace: build create-example
 	@echo "Running example with in-place modification..."
-	@$(BUILD_DIR)/$(BINARY_NAME) --orgs=github.com/myorg,github.com/acme-corp --in-place ${TEST_GO_FILES_DIR}/
+	@$(BUILD_DIR)/$(BINARY_NAME) --orgs=github.com/myorg,github.com/acme-corp --current-project=github.com/username/go-imports-group --in-place ${TEST_GO_FILES_DIR}/example.go
 	@echo "Files modified in-place."
 
 # Format and lint
